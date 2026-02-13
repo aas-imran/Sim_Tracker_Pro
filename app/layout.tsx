@@ -16,6 +16,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SIM Tracker Pro",
   description: "Retail SIM tracking and sales intelligence dashboard",
+  themeColor: "#020617",
+  viewport: "width=device-width, initial-scale=1, viewport-fit=cover",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SIM Tracker Pro",
+  },
 };
 
 export default function RootLayout({
@@ -31,4 +38,5 @@ export default function RootLayout({
     </html>
   );
 }
+
 
