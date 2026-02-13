@@ -55,3 +55,13 @@ export interface StaffPerformance {
   status: 'Active' | 'Inactive';
 }
 
+export interface StaffAccount {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: 'Staff';
+  avatar?: string;
+}
+
+

@@ -1,11 +1,12 @@
 "use client";
 
-import { Sale, SIMCard, StaffPerformance } from "../types";
+import { Sale, SIMCard, StaffPerformance, StaffAccount } from "../types";
 import { mockSales, mockSIMs, mockStaff } from "./dummyData";
 
 const SALES_KEY = "sim_tracker_sales";
 const SIMS_KEY = "sim_tracker_sims";
 const STAFF_KEY = "sim_tracker_staff";
+const STAFF_ACCOUNTS_KEY = "sim_tracker_staff_accounts";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -20,6 +21,18 @@ export const initializeStorage = () => {
   }
   if (!localStorage.getItem(STAFF_KEY)) {
     localStorage.setItem(STAFF_KEY, JSON.stringify(mockStaff));
+  }
+  if (!localStorage.getItem(STAFF_ACCOUNTS_KEY)) {
+    // Seed demo accounts for existing mock staff with default password
+    const seedAccounts: StaffAccount[] = mockStaff.map((s) => ({
+      id: s.id,
+      name: s.name,
+      email: s.email,
+      password: "staff123",
+      role: "Staff",
+      avatar: s.avatar,
+    }));
+    localStorage.setItem(STAFF_ACCOUNTS_KEY, JSON.stringify(seedAccounts));
   }
 };
 
@@ -109,6 +122,26 @@ export const getStaffPerformance = () => {
     };
   });
 };
+
+export const getStaffAccounts = (): StaffAccount[] => {
+  if (!isBrowser) return [];
+  initializeStorage();
+  return JSON.parse(localStorage.getItem(STAFF_ACCOUNTS_KEY) || "[]") as StaffAccount[];
+};
+
+export const saveStaffAccount = (account: StaffAccount) => {
+  if (!isBrowser) return;
+  const accounts = getStaffAccounts();
+  const next = [...accounts.filter((a) => a.id !== account.id), account];
+  localStorage.setItem(STAFF_ACCOUNTS_KEY, JSON.stringify(next));
+};
+
+export const findStaffAccountByEmail = (email: string): StaffAccount | undefined => {
+  if (!isBrowser) return undefined;
+  const accounts = getStaffAccounts();
+  return accounts.find((a) => a.email.toLowerCase() === email.toLowerCase());
+};
+
 
 export const downloadCSV = (data: any[], filename: string) => {
   if (!isBrowser || data.length === 0) return;

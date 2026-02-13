@@ -21,7 +21,7 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, role);
+    login(email, role, password);
   };
 
   const handleRoleToggle = (newRole: UserRole) => {
