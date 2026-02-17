@@ -10,7 +10,6 @@ import {
   ChevronRight,
   ArrowLeft,
   CheckCircle2,
-  Scan,
   Keyboard,
   AlertTriangle,
   Camera,
@@ -20,19 +19,106 @@ import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
 import { useAuth } from "../../../lib/store";
 import { saveSale, updateSIMStatus } from "../../../lib/storage";
+import { buildSaleRecord, generateRandomBarcode } from "../../../lib/sales";
 import type { Sale, ProductType, Network, PaymentMethod } from "../../../types";
 import { AppLayout } from "../../../components/AppLayout";
 import { ProtectedPage } from "../../../components/ProtectedPage";
 
+type PlanCategory =
+  | "Unlimited Data"
+  | "Local Calling"
+  | "Roaming Calling"
+  | "International Calling";
+
+interface SimPlan {
+  id: string;
+  category: PlanCategory;
+  name: string;
+  price: number;
+  data: string;
+  localMinutes: string;
+  roamingMinutes: string;
+  sms: string;
+  internationalMinutes: string;
+}
+
+const simPlans: SimPlan[] = [
+  {
+    id: "ud-150",
+    category: "Unlimited Data",
+    name: "Unlimited Data 150",
+    price: 150,
+    data: "Unlimited",
+    localMinutes: "150",
+    roamingMinutes: "0",
+    sms: "100",
+    internationalMinutes: "50",
+  },
+  {
+    id: "ud-300",
+    category: "Unlimited Data",
+    name: "Unlimited Data 300",
+    price: 300,
+    data: "Unlimited",
+    localMinutes: "300",
+    roamingMinutes: "30",
+    sms: "200",
+    internationalMinutes: "100",
+  },
+  {
+    id: "lc-120",
+    category: "Local Calling",
+    name: "Local Talk 120",
+    price: 120,
+    data: "5 GB",
+    localMinutes: "600",
+    roamingMinutes: "0",
+    sms: "100",
+    internationalMinutes: "0",
+  },
+  {
+    id: "lc-200",
+    category: "Local Calling",
+    name: "Local Talk 200",
+    price: 200,
+    data: "15 GB",
+    localMinutes: "1200",
+    roamingMinutes: "0",
+    sms: "200",
+    internationalMinutes: "0",
+  },
+  {
+    id: "rc-180",
+    category: "Roaming Calling",
+    name: "Roaming Pack 180",
+    price: 180,
+    data: "5 GB",
+    localMinutes: "200",
+    roamingMinutes: "200",
+    sms: "50",
+    internationalMinutes: "50",
+  },
+  {
+    id: "ic-220",
+    category: "International Calling",
+    name: "International Pack 220",
+    price: 220,
+    data: "10 GB",
+    localMinutes: "300",
+    roamingMinutes: "0",
+    sms: "100",
+    internationalMinutes: "400",
+  },
+];
+
 const StaffSaleView: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryType = searchParams.get("type") as ProductType | null;
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(queryType ? 2 : 1);
   const [stream, setStream] = useState<MediaStream | null>(null);
-
-  const queryType = searchParams.get("type") as ProductType | null;
 
   const [formData, setFormData] = useState<{
     type: ProductType | "";
@@ -40,49 +126,24 @@ const StaffSaleView: React.FC = () => {
     amount: string;
     method: PaymentMethod;
     barcode: string;
+    basePrice: string;
+    sellingPrice: string;
   }>({
     type: (queryType || "") as ProductType | "",
     network: "" as Network | "",
     amount: "",
     method: "Cash",
     barcode: "",
+    basePrice:
+      queryType === "SIM Card" || queryType === "Old SIM" ? "60" : "",
+    sellingPrice: "",
   });
 
   const [isSuccess, setIsSuccess] = useState(false);
   const [isCorrupted, setIsCorrupted] = useState(false);
-
-  useEffect(() => {
-    if (queryType && step === 1) {
-      setStep(2);
-    }
-  }, [queryType, step]);
-
-  const nextStep = () => setStep((prev) => prev + 1);
-
-  const prevStep = () => {
-    if (step === 1 || (step === 2 && queryType)) {
-      router.push("/staff/dashboard");
-      return;
-    }
-
-    if (step === 5 && formData.type === "Recharge") {
-      setStep(2);
-    } else if (step === 3 && (formData.type === "SIM Card" || formData.type === "Old SIM")) {
-      setStep(2);
-    } else {
-      setStep((prev) => prev - 1);
-    }
-  };
-
-  useEffect(() => {
-    const isSimPath = formData.type === "SIM Card" || formData.type === "Old SIM";
-    if (step === 3 && isSimPath) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => stopCamera();
-  }, [step, formData.type]);
+  const [selectedPlanCategory, setSelectedPlanCategory] =
+    useState<PlanCategory>("Unlimited Data");
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const startCamera = async () => {
     try {
@@ -105,8 +166,70 @@ const StaffSaleView: React.FC = () => {
     }
   };
 
+  const nextStep = () => {
+    const isSimPath = formData.type === "SIM Card" || formData.type === "Old SIM";
+    const currentStep = step;
+    const targetStep = currentStep + 1;
+
+    if (isSimPath) {
+      if (currentStep !== 3 && targetStep === 3) {
+        startCamera();
+      }
+      if (currentStep === 3 && targetStep !== 3) {
+        stopCamera();
+      }
+    }
+
+    setStep(targetStep);
+  };
+
+  const prevStep = () => {
+    if (step === 1 || (step === 2 && queryType)) {
+      router.push("/staff/dashboard");
+      return;
+    }
+
+    if (step === 5 && formData.type === "Recharge") {
+      setStep(2);
+      return;
+    }
+
+    const isSimPath = formData.type === "SIM Card" || formData.type === "Old SIM";
+    const currentStep = step;
+    const targetStep =
+      currentStep === 3 && isSimPath
+        ? 2
+        : currentStep - 1;
+
+    if (isSimPath) {
+      if (currentStep !== 3 && targetStep === 3) {
+        startCamera();
+      }
+      if (currentStep === 3 && targetStep !== 3) {
+        stopCamera();
+      }
+    }
+
+    setStep(targetStep);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [stream]);
+
   const handleSelectType = (type: ProductType) => {
-    setFormData((prev) => ({ ...prev, type }));
+    setFormData((prev) => ({
+      ...prev,
+      type,
+      basePrice:
+        type === "SIM Card" || type === "Old SIM"
+          ? prev.basePrice || "60"
+          : prev.basePrice,
+    }));
     nextStep();
   };
 
@@ -121,19 +244,45 @@ const StaffSaleView: React.FC = () => {
   const submitTransaction = (finalStatus: "Completed" | "Corrupted") => {
     const saleStatus: Sale["status"] = finalStatus === "Corrupted" ? "Cancelled" : "Completed";
 
-    const newSale: Sale = {
-      id: `INV-${Math.floor(10000 + Math.random() * 90000)}`,
-      date: new Date().toISOString().split("T")[0],
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      staff: user?.name || "Staff",
+    const basePrice = parseFloat(formData.basePrice) || 0;
+    const sellingPrice = parseFloat(formData.sellingPrice) || 0;
+    const vatRate = 0.05;
+    const vatAmount = sellingPrice * vatRate;
+    const discountAmount =
+      basePrice > 0 && sellingPrice > 0 && sellingPrice < basePrice
+        ? basePrice - sellingPrice
+        : 0;
+    const profit = sellingPrice - basePrice;
+    const totalAmount = sellingPrice + vatAmount;
+
+    const selectedPlan =
+      formData.type === "SIM Card" || formData.type === "Old SIM"
+        ? simPlans.find((p) => p.id === selectedPlanId)
+        : undefined;
+
+    const planSummary = selectedPlan
+      ? `${selectedPlan.data} data • ${selectedPlan.localMinutes} local • ${selectedPlan.roamingMinutes} roaming • ${selectedPlan.sms} SMS • ${selectedPlan.internationalMinutes} intl`
+      : undefined;
+
+    const newSale = buildSaleRecord({
+      idPrefix: "INV",
+      staffName: user?.name || "Staff",
       staffId: user?.id || "STF-001",
       productType: formData.type as ProductType,
       network: (formData.network || "Other") as Network,
-      amount: parseFloat(formData.amount) || 0,
+      amount: totalAmount || parseFloat(formData.amount) || 0,
       paymentMethod: formData.method,
-      simBarcode: formData.barcode || undefined,
       status: saleStatus,
-    };
+      simBarcode: formData.barcode || undefined,
+      basePrice,
+      discountAmount,
+      sellingPrice,
+      vatAmount,
+      profit,
+      planName: selectedPlan?.name,
+      planCategory: selectedPlan?.category,
+      planSummary,
+    });
 
     saveSale(newSale);
 
@@ -156,6 +305,20 @@ const StaffSaleView: React.FC = () => {
       router.push("/staff/dashboard");
     }, 2000);
   };
+
+  const basePriceValue = parseFloat(formData.basePrice) || 0;
+  const sellingPriceValue = parseFloat(formData.sellingPrice) || 0;
+  const vatRate = 0.05;
+  const vatAmount = sellingPriceValue * vatRate;
+  const discountAmount =
+    basePriceValue > 0 && sellingPriceValue > 0 && sellingPriceValue < basePriceValue
+      ? basePriceValue - sellingPriceValue
+      : 0;
+  const profitValue = sellingPriceValue - basePriceValue;
+  const invoiceTotal = sellingPriceValue + vatAmount;
+
+  const isSimSale = formData.type === "SIM Card" || formData.type === "Old SIM";
+  const activePlans = simPlans.filter((p) => p.category === selectedPlanCategory);
 
   if (isSuccess || isCorrupted) {
     return (
@@ -328,9 +491,7 @@ const StaffSaleView: React.FC = () => {
                 onClick={() =>
                   setFormData((prev) => ({
                     ...prev,
-                    barcode:
-                      "8971" +
-                      Math.floor(100000000000000 + Math.random() * 900000000000000),
+                    barcode: generateRandomBarcode(),
                   }))
                 }
                 className="p-4 bg-emerald-500 text-white rounded-2xl shadow-lg hover:bg-emerald-600 transition-colors"
@@ -387,23 +548,159 @@ const StaffSaleView: React.FC = () => {
         <div className="space-y-6 px-4">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-slate-900">Sale Processing</h2>
-            <p className="text-slate-500">Enter payment details for {formData.type}</p>
+            <p className="text-slate-500">Enter sale details and payment for {formData.type}</p>
           </div>
           <Card className="space-y-6 p-8 border-slate-200">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-widest">
-                Amount (AED)
-              </label>
-              <input
-                type="number"
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, amount: e.target.value }))
-                }
-                className="w-full text-4xl font-black text-slate-900 px-4 py-6 bg-slate-50 border-transparent border focus:bg-white focus:border-blue-500 rounded-3xl outline-none"
-                placeholder="0.00"
-                autoFocus
-              />
+            {isSimSale && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Select Plan
+                  </span>
+                  <div className="flex bg-slate-100 rounded-2xl p-1 gap-1">
+                    {[
+                      "Unlimited Data",
+                      "Local Calling",
+                      "Roaming Calling",
+                      "International Calling",
+                    ].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() =>
+                          setSelectedPlanCategory(cat as PlanCategory)
+                        }
+                        className={`px-3 py-1.5 rounded-2xl text-[11px] font-bold uppercase tracking-widest transition-all ${
+                          selectedPlanCategory === cat
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {activePlans.map((plan) => (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlanId(plan.id);
+                        const numeric = plan.price;
+                        const vat = numeric * vatRate;
+                        const total = numeric + vat;
+                        setFormData((prev) => ({
+                          ...prev,
+                          sellingPrice: numeric.toString(),
+                          amount: total.toFixed(2),
+                        }));
+                      }}
+                      className={`text-left p-4 rounded-2xl border-2 transition-all ${
+                        selectedPlanId === plan.id
+                          ? "border-blue-600 bg-blue-50"
+                          : "border-slate-200 bg-slate-50 hover:border-blue-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-sm text-slate-900">
+                          {plan.name}
+                        </span>
+                        <span className="text-sm font-black text-blue-600">
+                          AED {plan.price}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Data: {plan.data} • Local: {plan.localMinutes} min • Roaming:{" "}
+                        {plan.roamingMinutes} min
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        SMS: {plan.sms} • International: {plan.internationalMinutes} min
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-widest">
+                    Price of SIM (AED)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.basePrice}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, basePrice: e.target.value }))
+                    }
+                    className="w-full text-2xl font-black text-slate-900 px-4 py-4 bg-slate-50 border-transparent border focus:bg-white focus:border-blue-500 rounded-3xl outline-none"
+                    placeholder="60.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-widest">
+                    Selling Price (AED)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.sellingPrice}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const numeric = parseFloat(value) || 0;
+                      const vat = numeric * vatRate;
+                      const total = numeric + vat;
+                      setFormData((prev) => ({
+                        ...prev,
+                        sellingPrice: value,
+                        amount: value ? total.toFixed(2) : "",
+                      }));
+                    }}
+                    className="w-full text-2xl font-black text-slate-900 px-4 py-4 bg-slate-50 border-transparent border focus:bg-white focus:border-blue-500 rounded-3xl outline-none"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Discount
+                  </span>
+                  <span className="text-lg font-black text-slate-900">
+                    AED {discountAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    VAT (5%)
+                  </span>
+                  <span className="text-lg font-black text-slate-900">
+                    AED {vatAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    {profitValue >= 0 ? "Profit" : "Loss"}
+                  </span>
+                  <span
+                    className={`text-lg font-black ${
+                      profitValue >= 0 ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  >
+                    AED {Math.abs(profitValue).toFixed(2)}
+                  </span>
+                </div>
+                <div className="pt-4 mt-2 border-t border-slate-200 flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                    Invoice Total (incl. VAT)
+                  </span>
+                  <span className="text-2xl font-black text-slate-900">
+                    AED {invoiceTotal.toFixed(2)}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -431,7 +728,7 @@ const StaffSaleView: React.FC = () => {
             </div>
 
             <button
-              disabled={!formData.amount}
+              disabled={!formData.sellingPrice}
               onClick={() => submitTransaction("Completed")}
               className="w-full py-5 bg-blue-600 text-white rounded-3xl font-bold text-xl shadow-2xl shadow-blue-200 transition-all hover:bg-blue-700 active:scale-95 disabled:bg-slate-200 disabled:shadow-none"
             >
@@ -455,4 +752,3 @@ const StaffSalePage: React.FC = () => {
 };
 
 export default StaffSalePage;
-

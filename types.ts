@@ -38,6 +38,14 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   simBarcode?: string;
   status: 'Completed' | 'Pending' | 'Cancelled';
+  basePrice?: number;
+  discountAmount?: number;
+  sellingPrice?: number;
+  vatAmount?: number;
+  profit?: number;
+  planName?: string;
+  planCategory?: string;
+  planSummary?: string;
 }
 
 export interface StaffPerformance {
@@ -63,5 +71,3 @@ export interface StaffAccount {
   role: 'Staff';
   avatar?: string;
 }
-
-

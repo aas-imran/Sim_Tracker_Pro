@@ -389,7 +389,7 @@ const OwnerReportsSalesView: React.FC = () => {
 
   /* ------------------------------- DATA LOAD ------------------------------- */
   useEffect(() => {
-    const data = getSales();
+    const data = getSales().filter((s) => s.productType !== "Recharge");
     setSales(data);
     setFilteredSales(data);
   }, []);
@@ -512,7 +512,6 @@ const OwnerReportsSalesView: React.FC = () => {
             >
               <option value="All">All Services</option>
               <option value="SIM Card">New Activation</option>
-              <option value="Recharge">Recharge</option>
               <option value="Old SIM">Replacement</option>
             </select>
           </div>
@@ -579,19 +578,58 @@ const OwnerReportsSalesView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filteredSales.length > 0 ? filteredSales.map((sale) => (
-                <tr key={sale.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${sale.productType === 'SIM Card' ? 'bg-blue-50 text-blue-600' : (sale.productType === 'Recharge' ? 'bg-emerald-50 text-emerald-600' : 'bg-purple-50 text-purple-600')}`}>
-                        <FileText size={16} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors">{sale.productType}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">{sale.date} • {sale.time}</p>
-                      </div>
-                    </div>
-                  </td>
+              {filteredSales.length > 0 ? (
+                filteredSales.map((sale) => {
+                  const isSimProduct =
+                    sale.productType === "SIM Card" || sale.productType === "Old SIM";
+                  const serviceLabel =
+                    sale.productType === "SIM Card"
+                      ? "New SIM"
+                      : sale.productType === "Old SIM"
+                      ? "Replace SIM"
+                      : sale.productType;
+                  const basePrice = isSimProduct ? sale.basePrice ?? 60 : sale.basePrice;
+                  const sellingPrice =
+                    isSimProduct && sale.sellingPrice
+                      ? sale.sellingPrice
+                      : sale.sellingPrice ?? sale.amount;
+                  const discount =
+                    typeof sale.discountAmount === "number"
+                      ? sale.discountAmount
+                      : basePrice && sellingPrice && sellingPrice < basePrice
+                      ? basePrice - sellingPrice
+                      : 0;
+
+                  return (
+                    <tr key={sale.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-2 rounded-lg ${
+                              sale.productType === "SIM Card"
+                                ? "bg-blue-50 text-blue-600"
+                                : "bg-purple-50 text-purple-600"
+                            }`}
+                          >
+                            <FileText size={16} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors">
+                              {serviceLabel}
+                            </p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">
+                              {sale.date} • {sale.time}
+                            </p>
+                            {isSimProduct && basePrice && sellingPrice && (
+                              <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
+                                {sale.planName ? `Plan: ${sale.planName} • ` : ""}
+                                Sold AED {sellingPrice.toFixed(2)} • Disc AED{" "}
+                                {discount.toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
                   <td className="px-6 py-4">
                     <p className="text-sm font-black text-slate-700">{sale.staff}</p>
                     <p className="text-[10px] font-bold text-slate-400 uppercase">ID: {sale.staffId}</p>
@@ -603,24 +641,30 @@ const OwnerReportsSalesView: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <p className="text-sm font-black text-slate-900">AED {sale.amount}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">{sale.paymentMethod}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                      {sale.paymentMethod}
+                    </p>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <Badge variant={sale.status === 'Completed' ? 'success' : 'danger'}>
-                      {sale.status === 'Completed' ? 'SUCCESS' : 'CANCELLED'}
+                    <Badge variant={sale.status === "Completed" ? "success" : "danger"}>
+                      {sale.status === "Completed" ? "SUCCESS" : "CANCELLED"}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 text-right">
-                     <button 
-                       onClick={() => setActiveInvoice(sale)}
-                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1.5 ml-auto"
-                     >
-                        <FileDown size={16} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Generate</span>
-                     </button>
+                    <button
+                      onClick={() => setActiveInvoice(sale)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1.5 ml-auto"
+                    >
+                      <FileDown size={16} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        Generate
+                      </span>
+                    </button>
                   </td>
                 </tr>
-              )) : (
+                  );
+                })
+              ) : (
                 <tr>
                   <td colSpan={6} className="px-6 py-20 text-center">
                      <div className="flex flex-col items-center gap-2 opacity-30">

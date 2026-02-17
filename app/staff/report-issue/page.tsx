@@ -1,22 +1,13 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import {
-  AlertTriangle,
-  Camera,
-  Smartphone,
-  Keyboard,
-  ArrowLeft,
-  CheckCircle2,
-  MessageSquare,
-  Package,
-  Cpu,
-} from "lucide-react";
+import { Smartphone, Keyboard, ArrowLeft, CheckCircle2, Package, Cpu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
 import { useAuth } from "../../../lib/store";
 import { updateSIMStatus, saveSale } from "../../../lib/storage";
+import { createInvoiceId, createSaleTimestamp, generateRandomBarcode } from "../../../lib/sales";
 import { AppLayout } from "../../../components/AppLayout";
 import { ProtectedPage } from "../../../components/ProtectedPage";
 
@@ -26,8 +17,9 @@ const StaffReportIssueView: React.FC = () => {
   const router = useRouter();
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [step, setStep] = useState(1);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isCameraOn, setIsCameraOn] = useState(false);
 
   const [report, setReport] = useState<{
     category: ReportCategory;
@@ -43,33 +35,34 @@ const StaffReportIssueView: React.FC = () => {
 
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  useEffect(() => {
-    if (step === 2 && report.category === "SIM") {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => stopCamera();
-  }, [step, report.category]);
-
   const startCamera = async () => {
     try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
       });
-      setStream(s);
+      streamRef.current = s;
       if (videoRef.current) videoRef.current.srcObject = s;
+      setIsCameraOn(true);
     } catch (err) {
       console.error("Camera error:", err);
     }
   };
 
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop());
-      setStream(null);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
+    setIsCameraOn(false);
   };
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
 
   const handleSubmit = () => {
     if (report.category === "SIM" && report.barcode) {
@@ -80,10 +73,12 @@ const StaffReportIssueView: React.FC = () => {
         user?.name
       );
 
+      const { date, time } = createSaleTimestamp();
+
       saveSale({
-        id: `ERR-${Math.floor(10000 + Math.random() * 90000)}`,
-        date: new Date().toISOString().split("T")[0],
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        id: createInvoiceId("ERR"),
+        date,
+        time,
         staff: user?.name || "Staff",
         staffId: user?.id || "STF-001",
         productType: "SIM Card",
@@ -121,7 +116,12 @@ const StaffReportIssueView: React.FC = () => {
       <div className="flex items-center justify-between">
         {step > 1 ? (
           <button
-            onClick={() => setStep(step - 1)}
+            onClick={() => {
+              if (step === 2 && report.category === "SIM") {
+                stopCamera();
+              }
+              setStep(step - 1);
+            }}
             className="p-2 text-slate-500 hover:bg-white rounded-full"
           >
             <ArrowLeft size={24} />
@@ -168,6 +168,11 @@ const StaffReportIssueView: React.FC = () => {
                 onClick={() => {
                   setReport((prev) => ({ ...prev, category: cat.id as ReportCategory }));
                   setStep(2);
+                  if (cat.id === "SIM") {
+                    startCamera();
+                  } else {
+                    stopCamera();
+                  }
                 }}
                 className="hover:ring-2 hover:ring-rose-500 transition-all p-6 group"
               >
@@ -196,7 +201,7 @@ const StaffReportIssueView: React.FC = () => {
             <div className="absolute inset-0 border-4 border-rose-500/30 rounded-[2rem] m-6 pointer-events-none">
               <div className="w-full h-1 bg-rose-500 absolute animate-[scan_2s_infinite]" />
             </div>
-            {!stream && (
+            {!isCameraOn && (
               <div className="absolute inset-0 flex items-center justify-center text-white font-bold bg-slate-900">
                 Camera Off
               </div>
@@ -216,8 +221,7 @@ const StaffReportIssueView: React.FC = () => {
               onClick={() =>
                 setReport((prev) => ({
                   ...prev,
-                  barcode:
-                    "8971" + Math.floor(100000000000000 + Math.random() * 100000000000000),
+                  barcode: generateRandomBarcode(),
                 }))
               }
               className="p-4 bg-slate-900 text-white rounded-2xl"
@@ -227,7 +231,12 @@ const StaffReportIssueView: React.FC = () => {
           </div>
           <button
             disabled={!report.barcode}
-            onClick={() => setStep(3)}
+            onClick={() => {
+              if (report.category === "SIM") {
+                stopCamera();
+              }
+              setStep(3);
+            }}
             className="w-full py-5 bg-blue-600 text-white rounded-2xl font-bold disabled:bg-slate-200"
           >
             Continue to Details
@@ -341,4 +350,3 @@ const StaffReportIssuePage: React.FC = () => {
 };
 
 export default StaffReportIssuePage;
-

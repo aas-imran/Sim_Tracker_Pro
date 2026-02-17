@@ -49,6 +49,13 @@ const OwnerDashboardView: React.FC = () => {
     setStaffPerf(getStaffPerformance());
   };
 
+  const activeNewSims = sales.filter(
+    (s) => s.productType === "SIM Card" && s.status === "Completed"
+  ).length;
+  const activeReplacementSims = sales.filter(
+    (s) => s.productType === "Old SIM" && s.status === "Completed"
+  ).length;
+
   const stats = [
     {
       label: "Gross Revenue (Total)",
@@ -68,7 +75,7 @@ const OwnerDashboardView: React.FC = () => {
     },
     {
       label: "Active Network Units",
-      value: metrics.activeSims.toString(),
+      value: (activeNewSims + activeReplacementSims).toString(),
       icon: Smartphone,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
@@ -131,7 +138,18 @@ const OwnerDashboardView: React.FC = () => {
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
                   {stat.label}
                 </p>
-                <h3 className="text-2xl font-black text-slate-900">{stat.value}</h3>
+                {stat.label === "Active Network Units" ? (
+                  <div className="space-y-1">
+                    <p className="text-xs font-black text-slate-900">
+                      New SIM: {activeNewSims}
+                    </p>
+                    <p className="text-xs font-black text-slate-900">
+                      Replacement: {activeReplacementSims}
+                    </p>
+                  </div>
+                ) : (
+                  <h3 className="text-2xl font-black text-slate-900">{stat.value}</h3>
+                )}
               </div>
               <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color}`}>
                 <stat.icon size={24} />
@@ -277,59 +295,89 @@ const OwnerDashboardView: React.FC = () => {
         <Card title="Global Activity Feed" className="p-0 overflow-hidden border-slate-100 shadow-sm">
           <div className="max-h-[400px] overflow-y-auto">
             <div className="divide-y divide-slate-100">
-              {sales.slice(0, 15).map((sale, i) => (
-                <div
-                  key={i}
-                  className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/80 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
+              {sales
+                .filter(
+                  (sale) =>
+                    sale.productType === "SIM Card" || sale.productType === "Old SIM"
+                )
+                .slice(0, 15)
+                .map((sale, i) => {
+                  const isSimProduct =
+                    sale.productType === "SIM Card" || sale.productType === "Old SIM";
+                  const basePrice = isSimProduct ? sale.basePrice ?? 60 : sale.basePrice;
+                  const sellingPrice =
+                    isSimProduct && sale.sellingPrice
+                      ? sale.sellingPrice
+                      : sale.sellingPrice ?? sale.amount;
+                  const discount =
+                    typeof sale.discountAmount === "number"
+                      ? sale.discountAmount
+                      : basePrice && sellingPrice && sellingPrice < basePrice
+                      ? basePrice - sellingPrice
+                      : 0;
+                  const vatAmount = typeof sale.vatAmount === "number" ? sale.vatAmount : 0;
+
+                  return (
                     <div
-                      className={`p-2.5 rounded-xl ${
-                        sale.productType === "SIM Card"
-                          ? "bg-blue-100 text-blue-600"
-                          : sale.productType === "Recharge"
-                          ? "bg-emerald-100 text-emerald-600"
-                          : "bg-purple-100 text-purple-600"
-                      }`}
+                      key={i}
+                      className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/80 transition-colors"
                     >
-                      {sale.productType === "SIM Card" ? (
-                        <Smartphone size={18} />
-                      ) : sale.productType === "Recharge" ? (
-                        <Wifi size={18} />
-                      ) : (
-                        <Cpu size={18} />
-                      )}
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`p-2.5 rounded-xl ${
+                            sale.productType === "SIM Card"
+                              ? "bg-blue-100 text-blue-600"
+                              : "bg-purple-100 text-purple-600"
+                          }`}
+                        >
+                          {sale.productType === "SIM Card" ? (
+                            <Smartphone size={18} />
+                          ) : (
+                            <Cpu size={18} />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">
+                            {sale.productType}{" "}
+                            <span className="text-slate-400 font-medium">
+                              via {sale.staff.split(" ")[0]}
+                            </span>
+                          </p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {sale.date} • {sale.time}
+                          </p>
+                          {isSimProduct && basePrice && sellingPrice && (
+                            <>
+                              <p className="text-[11px] font-bold text-slate-500 mt-1">
+                                Cost AED {basePrice.toFixed(2)} • Sold AED{" "}
+                                {sellingPrice.toFixed(2)} • Disc AED {discount.toFixed(2)} • VAT
+                                AED {vatAmount.toFixed(2)}
+                              </p>
+                              {sale.planName && (
+                                <p className="text-[11px] font-medium text-slate-400">
+                                  Plan: {sale.planName}
+                                  {sale.planSummary ? ` • ${sale.planSummary}` : ""}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={`text-sm font-black ${
+                            sale.status === "Completed" ? "text-slate-900" : "text-rose-500"
+                          }`}
+                        >
+                          {sale.status === "Completed" ? `AED ${sale.amount}` : "REPORTED"}
+                        </p>
+                        <Badge variant={sale.status === "Completed" ? "success" : "danger"}>
+                          {sale.status === "Completed" ? "ACTIVE" : "CORRUPT"}
+                        </Badge>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">
-                        {sale.productType}{" "}
-                        <span className="text-slate-400 font-medium">
-                          via {sale.staff.split(" ")[0]}
-                        </span>
-                      </p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        {sale.date} • {sale.time}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className={`text-sm font-black ${
-                        sale.status === "Completed" ? "text-slate-900" : "text-rose-500"
-                      }`}
-                    >
-                      {sale.status === "Completed" ? `AED ${sale.amount}` : "REPORTED"}
-                    </p>
-                    <Badge variant={sale.status === "Completed" ? "success" : "danger"}>
-                      {sale.status === "Completed"
-                        ? sale.productType === "Recharge"
-                          ? "RECHARGED"
-                          : "ACTIVE"
-                        : "CORRUPT"}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
             </div>
           </div>
           <div className="p-4 bg-slate-50 text-center border-t border-slate-100">
@@ -357,4 +405,3 @@ const OwnerDashboardPage: React.FC = () => {
 };
 
 export default OwnerDashboardPage;
-

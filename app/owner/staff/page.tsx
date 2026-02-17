@@ -444,36 +444,6 @@ const OwnerStaffManagementView: React.FC = () => {
 
                 <Card className="bg-white border-slate-200 p-5 flex flex-col gap-3 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-                      <Wifi size={24} />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-black text-slate-900">
-                        {getStaffStats(selectedStaffDetail.id).rechargesCount}
-                      </p>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Recharges
-                      </p>
-                    </div>
-                  </div>
-                  <div className="pt-3 border-t border-slate-100 space-y-1.5">
-                    {["Du", "Etisalat", "Virgin Mobile"].map((net) => (
-                      <div key={net} className="flex justify-between text-[10px]">
-                        <span className="font-black text-slate-400 uppercase">{net}</span>
-                        <span className="font-black text-emerald-600">
-                          AED{" "}
-                          {
-                            getStaffStats(selectedStaffDetail.id).networkStats[net]
-                              .rechargeValue
-                          }
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-
-                <Card className="bg-white border-slate-200 p-5 flex flex-col gap-3 shadow-sm">
-                  <div className="flex items-center gap-3">
                     <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
                       <Cpu size={24} />
                     </div>
@@ -501,96 +471,130 @@ const OwnerStaffManagementView: React.FC = () => {
                     ))}
                   </div>
                 </Card>
-              </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="flex flex-col min-h-0">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 flex items-center gap-2">
-                    <History size={14} className="text-blue-500" /> Recent Terminal Log
-                  </h4>
-                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[320px]">
-                    <div className="overflow-y-auto divide-y divide-slate-100">
-                      {getStaffStats(selectedStaffDetail.id).logs.length > 0 ? (
-                        getStaffStats(selectedStaffDetail.id).logs.map((log, i) => (
-                          <div
-                            key={i}
-                            className="px-5 py-4 flex items-center justify-between hover:bg-slate-50"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={`p-2 rounded-lg ${
-                                  log.status === "Completed"
-                                    ? "bg-slate-100 text-slate-500"
-                                    : "bg-rose-50 text-rose-500"
-                                }`}
-                              >
-                                <Activity size={14} />
-                              </div>
-                              <div>
-                                <p className="text-xs font-black text-slate-800 leading-none">
-                                  {log.productType}
-                                </p>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
-                                  {log.time} • {log.network}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs font-black text-slate-900">
-                                AED {log.amount}
-                              </p>
-                              <span
-                                className={`text-[8px] font-black uppercase ${
-                                  log.status === "Completed"
-                                    ? "text-emerald-500"
-                                    : "text-rose-500"
-                                }`}
-                              >
-                                {log.status === "Completed" ? "Verified" : "Corrupt"}
-                              </span>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-10 text-center text-[10px] font-black text-slate-300 uppercase italic">
-                          Empty Log
-                        </div>
-                      )}
+                <Card className="bg-white border-slate-200 p-5 flex flex-col gap-3 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
+                      <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-black text-slate-900">
+                        {getStaffStats(selectedStaffDetail.id).corruptedCount}
+                      </p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Comprehensive Fault Audit
+                      </p>
                     </div>
                   </div>
-                </div>
+                  <div className="pt-3 border-t border-slate-100 space-y-1.5">
+                    {["Du", "Etisalat", "Virgin Mobile"].map((net) => (
+                      <div key={net} className="flex justify-between text-[10px]">
+                        <span className="font-black text-slate-400 uppercase">{net}</span>
+                        <span className="font-black text-rose-600">
+                          {
+                            getStaffStats(selectedStaffDetail.id).networkStats[net]
+                              .corrupted
+                          }{" "}
+                          Issues
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
 
-                <div className="flex flex-col min-h-0">
-                  <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-3 px-1 flex items-center gap-2">
-                    <AlertTriangle size={14} /> Comprehensive Fault Audit
-                  </h4>
-                  <div className="bg-white rounded-2xl border border-rose-100 overflow-hidden flex flex-col max-h-[320px]">
-                    <div className="overflow-y-auto divide-y divide-rose-50">
-                      {getStaffStats(selectedStaffDetail.id).faults.length > 0 ? (
-                        getStaffStats(selectedStaffDetail.id).faults.map((fault, i) => (
-                          <div key={i} className="px-5 py-5 bg-rose-50/10">
-                            <div className="flex justify-between items-start mb-2">
-                              <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">
-                                {fault.network} Rejection
-                              </p>
-                              <span className="text-[9px] font-bold text-slate-400">
-                                {fault.date}
-                              </span>
+              <div className="flex flex-col min-h-0">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 flex items-center gap-2">
+                  <History size={14} className="text-blue-500" /> Recent Terminal Log
+                </h4>
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[320px]">
+                  <div className="overflow-y-auto divide-y divide-slate-100">
+                    {getStaffStats(selectedStaffDetail.id).logs.filter(
+                      (log) =>
+                        log.productType === "SIM Card" || log.productType === "Old SIM"
+                    ).length > 0 ? (
+                      getStaffStats(selectedStaffDetail.id)
+                        .logs.filter(
+                          (log) =>
+                            log.productType === "SIM Card" ||
+                            log.productType === "Old SIM"
+                        )
+                        .map((log, i) => {
+                          const isSimProduct =
+                            log.productType === "SIM Card" ||
+                            log.productType === "Old SIM";
+                          const serviceLabel =
+                            log.productType === "SIM Card" ? "New SIM" : "Replace SIM";
+                          const basePrice = isSimProduct
+                            ? log.basePrice ?? 60
+                            : log.basePrice;
+                          const sellingPrice =
+                            isSimProduct && log.sellingPrice
+                              ? log.sellingPrice
+                              : log.sellingPrice ?? log.amount;
+                          const discount =
+                            typeof log.discountAmount === "number"
+                              ? log.discountAmount
+                              : basePrice && sellingPrice && sellingPrice < basePrice
+                              ? basePrice - sellingPrice
+                              : 0;
+                          const vatAmount =
+                            typeof log.vatAmount === "number" ? log.vatAmount : 0;
+
+                          return (
+                            <div
+                              key={i}
+                              className="px-5 py-4 flex items-center justify-between hover:bg-slate-50"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`p-2 rounded-lg ${
+                                    log.status === "Completed"
+                                      ? "bg-slate-100 text-slate-500"
+                                      : "bg-rose-50 text-rose-500"
+                                  }`}
+                                >
+                                  <Activity size={14} />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-black text-slate-800 leading-none">
+                                    {serviceLabel}
+                                  </p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
+                                    {log.date} • {log.time} • {log.network}
+                                  </p>
+                                  {isSimProduct && basePrice && sellingPrice && (
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
+                                      {log.planName ? `Plan: ${log.planName} • ` : ""}
+                                      Sold AED {sellingPrice.toFixed(2)} • Disc AED{" "}
+                                      {discount.toFixed(2)} • VAT AED{" "}
+                                      {vatAmount.toFixed(2)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs font-black text-slate-900">
+                                  AED {log.amount}
+                                </p>
+                                <span
+                                  className={`text-[8px] font-black uppercase ${
+                                    log.status === "Completed"
+                                      ? "text-emerald-500"
+                                      : "text-rose-500"
+                                  }`}
+                                >
+                                  {log.status === "Completed" ? "Verified" : "Corrupt"}
+                                </span>
+                              </div>
                             </div>
-                            <p className="text-xs font-bold text-slate-700 italic">
-                              "Ref: {fault.simBarcode || "N/A"}"
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-20 flex flex-col items-center justify-center text-emerald-500 opacity-60">
-                          <ShieldCheck size={40} />
-                          <p className="text-[10px] font-black uppercase mt-2 tracking-widest">
-                            Clean Status
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                          );
+                        })
+                    ) : (
+                      <div className="p-10 text-center text-[10px] font-black text-slate-300 uppercase italic">
+                        Empty Log
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -895,4 +899,3 @@ const OwnerStaffPage: React.FC = () => {
 };
 
 export default OwnerStaffPage;
-

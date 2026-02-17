@@ -23,11 +23,14 @@ import { AppLayout } from "../../../components/AppLayout";
 import { ProtectedPage } from "../../../components/ProtectedPage";
 
 const StaffDashboardView: React.FC = () => {
+  type LiveFilter = "All" | "NewSIM" | "Replacement" | "Report";
+
   const { user } = useAuth();
   const [sales, setSales] = useState<Sale[]>([]);
   const [metrics, setMetrics] = useState({ todaySales: 0, activeSims: 0, corruptedSims: 0 });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [filterPeriod, setFilterPeriod] = useState<"Today" | "All Time">("Today");
+  const [liveTypeFilter, setLiveTypeFilter] = useState<LiveFilter>("All");
 
   useEffect(() => {
     if (user) {
@@ -61,6 +64,29 @@ const StaffDashboardView: React.FC = () => {
     if (filterPeriod === "Today") {
       const todayStr = new Date().toISOString().split("T")[0];
       return sales.filter((s) => s.date === todayStr);
+    }
+    return sales;
+  };
+
+  const newSimCount = sales.filter(
+    (s) => s.productType === "SIM Card" && s.status === "Completed"
+  ).length;
+  const replacementCount = sales.filter(
+    (s) => s.productType === "Old SIM" && s.status === "Completed"
+  ).length;
+  const reportCount = sales.filter(
+    (s) => s.productType === "SIM Card" && s.status === "Cancelled"
+  ).length;
+
+  const getLiveFilteredSales = () => {
+    if (liveTypeFilter === "NewSIM") {
+      return sales.filter((s) => s.productType === "SIM Card" && s.status === "Completed");
+    }
+    if (liveTypeFilter === "Replacement") {
+      return sales.filter((s) => s.productType === "Old SIM" && s.status === "Completed");
+    }
+    if (liveTypeFilter === "Report") {
+      return sales.filter((s) => s.productType === "SIM Card" && s.status === "Cancelled");
     }
     return sales;
   };
@@ -102,10 +128,24 @@ const StaffDashboardView: React.FC = () => {
   ];
 
   const quickActions = [
-    { label: "Activate New SIM", icon: Smartphone, href: "/staff/sale?type=SIM Card", color: "bg-blue-600" },
-    { label: "Recharge", icon: Wifi, href: "/staff/sale?type=Recharge", color: "bg-emerald-600" },
-    { label: "Replace SIM", icon: Cpu, href: "/staff/sale?type=Old SIM", color: "bg-purple-600" },
-    { label: "Report Issue", icon: AlertTriangle, href: "/staff/report-issue", color: "bg-rose-500" },
+    {
+      label: "Activate New SIM",
+      icon: Smartphone,
+      href: "/staff/sale?type=SIM Card",
+      color: "bg-gradient-to-br from-blue-600 to-blue-500",
+    },
+    {
+      label: "Replace SIM",
+      icon: Cpu,
+      href: "/staff/sale?type=Old SIM",
+      color: "bg-gradient-to-br from-purple-600 to-purple-500",
+    },
+    {
+      label: "Report Issue",
+      icon: AlertTriangle,
+      href: "/staff/report-issue",
+      color: "bg-gradient-to-br from-rose-600 to-rose-500",
+    },
   ];
 
   return (
@@ -147,75 +187,148 @@ const StaffDashboardView: React.FC = () => {
         <div className="lg:col-span-2 space-y-8">
           <section>
             <h2 className="text-lg font-bold text-slate-900 mb-4">Retail Terminal Actions</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               {quickActions.map((action, i) => (
                 <Link
                   key={i}
                   href={action.href}
-                  className={`${action.color} text-white p-6 rounded-3xl flex flex-col items-center gap-3 transition-all active:scale-95 shadow-lg shadow-slate-900/5 hover:brightness-110 group`}
+                  className={`${action.color} text-white px-6 py-7 rounded-3xl flex flex-col gap-3 transition-all active:scale-95 shadow-lg shadow-slate-900/10 hover:brightness-110 group`}
                 >
-                  <action.icon size={32} className="group-hover:scale-110 transition-transform" />
-                  <span className="font-bold text-xs text-center leading-tight">
-                    {action.label}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-white/10 rounded-2xl group-hover:bg-white/20 transition-colors">
+                      <action.icon
+                        size={28}
+                        className="group-hover:scale-110 transition-transform"
+                      />
+                    </div>
+                    <span className="font-bold text-sm leading-tight">{action.label}</span>
+                  </div>
+                  <p className="text-[11px] text-white/80 font-medium">
+                    {action.label === "Activate New SIM" &&
+                      "Scan, activate and bill new SIM units."}
+                    {action.label === "Replace SIM" &&
+                      "Handle SIM swap or number migration for customers."}
+                    {action.label === "Report Issue" &&
+                      "Escalate faulty SIMs or terminal problems to owner."}
+                  </p>
                 </Link>
               ))}
             </div>
           </section>
 
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-900">Live Activity Log</h2>
-              <button
-                onClick={() => setShowHistoryModal(true)}
-                className="text-sm font-bold text-blue-600 flex items-center gap-1 hover:underline"
-              >
-                Full Tabular View <ArrowRight size={16} />
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Live Activity Log</h2>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  New SIM ({newSimCount}) • Replacement ({replacementCount}) • Reports (
+                  {reportCount})
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {([
+                  { id: "All", label: "All" },
+                  { id: "NewSIM", label: "New SIM" },
+                  { id: "Replacement", label: "Replacement" },
+                  { id: "Report", label: "Reports" },
+                ] as { id: LiveFilter; label: string }[]).map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setLiveTypeFilter(f.id)}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest border transition-all ${
+                      liveTypeFilter === f.id
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-blue-300"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setShowHistoryModal(true)}
+                  className="text-[11px] font-black text-blue-600 flex items-center gap-1 uppercase tracking-widest hover:underline"
+                >
+                  Full View <ArrowRight size={12} />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
-              {sales.length > 0 ? (
-                sales.slice(0, 6).map((sale, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-5 bg-white rounded-3xl border border-slate-100 hover:border-blue-200 transition-colors shadow-sm"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`p-3 rounded-2xl ${
-                          sale.productType === "SIM Card"
-                            ? "bg-blue-50 text-blue-600"
-                            : sale.productType === "Recharge"
-                            ? "bg-emerald-50 text-emerald-600"
-                            : "bg-purple-50 text-purple-600"
-                        }`}
-                      >
-                        {sale.productType === "SIM Card" ? (
-                          <Smartphone size={20} />
-                        ) : sale.productType === "Recharge" ? (
-                          <Wifi size={20} />
-                        ) : (
-                          <Cpu size={20} />
-                        )}
+              {getLiveFilteredSales().length > 0 ? (
+                getLiveFilteredSales()
+                  .slice(0, 6)
+                  .map((sale, i) => {
+                  const isSimProduct =
+                    sale.productType === "SIM Card" || sale.productType === "Old SIM";
+                  const basePrice = isSimProduct ? sale.basePrice ?? 60 : sale.basePrice;
+                  const sellingPrice =
+                    isSimProduct && sale.sellingPrice
+                      ? sale.sellingPrice
+                      : sale.sellingPrice ?? sale.amount;
+                  const discount =
+                    typeof sale.discountAmount === "number"
+                      ? sale.discountAmount
+                      : basePrice && sellingPrice && sellingPrice < basePrice
+                      ? basePrice - sellingPrice
+                      : 0;
+
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between p-5 bg-white rounded-3xl border border-slate-100 hover:border-blue-200 transition-colors shadow-sm"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`p-3 rounded-2xl ${
+                            sale.productType === "SIM Card"
+                              ? "bg-blue-50 text-blue-600"
+                              : sale.productType === "Recharge"
+                              ? "bg-emerald-50 text-emerald-600"
+                              : "bg-purple-50 text-purple-600"
+                          }`}
+                        >
+                          {sale.productType === "SIM Card" ? (
+                            <Smartphone size={20} />
+                          ) : sale.productType === "Recharge" ? (
+                            <Wifi size={20} />
+                          ) : (
+                            <Cpu size={20} />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">
+                            {sale.productType} ({sale.network})
+                          </p>
+                          <p className="text-xs text-slate-400 font-medium">
+                            {sale.time} • INV: {sale.id}
+                          </p>
+                          {isSimProduct && basePrice && sellingPrice && (
+                            <>
+                              <p className="text-[11px] font-bold text-slate-500 mt-1">
+                                Cost AED {basePrice.toFixed(2)} • Sold AED{" "}
+                                {sellingPrice.toFixed(2)} • Disc AED {discount.toFixed(2)}
+                              </p>
+                              {sale.planName && (
+                                <p className="text-[11px] font-medium text-slate-400">
+                                  Plan: {sale.planName}
+                                  {sale.planSummary ? ` • ${sale.planSummary}` : ""}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">
-                          {sale.productType} ({sale.network})
+                      <div className="text-right">
+                        <p className="text-sm font-black text-slate-900">
+                          AED {sale.amount}
                         </p>
-                        <p className="text-xs text-slate-400 font-medium">
-                          {sale.time} • INV: {sale.id}
-                        </p>
+                        <Badge variant={sale.status === "Completed" ? "success" : "danger"}>
+                          {sale.status === "Completed" ? "ACTIVE" : "CORRUPT"}
+                        </Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-black text-slate-900">AED {sale.amount}</p>
-                      <Badge variant={sale.status === "Completed" ? "success" : "danger"}>
-                        {sale.status === "Completed" ? "ACTIVE" : "CORRUPT"}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="p-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
                   Waiting for transactions...
@@ -391,4 +504,3 @@ const StaffDashboardPage: React.FC = () => {
 };
 
 export default StaffDashboardPage;
-

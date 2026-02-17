@@ -143,7 +143,7 @@ export const findStaffAccountByEmail = (email: string): StaffAccount | undefined
 };
 
 
-export const downloadCSV = (data: any[], filename: string) => {
+export const downloadCSV = <T extends Record<string, unknown>>(data: T[], filename: string) => {
   if (!isBrowser || data.length === 0) return;
   const headers = Object.keys(data[0]).join(",");
   const rows = data.map((obj) => Object.values(obj).join(",")).join("\n");
@@ -156,4 +156,3 @@ export const downloadCSV = (data: any[], filename: string) => {
   link.click();
   document.body.removeChild(link);
 };
-
